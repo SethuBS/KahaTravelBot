@@ -29,7 +29,6 @@ Overall, the assignment aims to assess the candidate's coding skills, debugging 
  * - Your solution should be clean, well-organized, and thoroughly tested. If you are unsure of anything, state you assumptions in comments as you proceed with the assignment.
  * - You may make use of external libraries such as Newtonsoft.Json or System.Text.Json for proper JSON parsing and deserialization.
  * - Feel free to refactor and improve the code where necessary.
- * - Once you're done, submit your solution as a zip file via email to chat@kaha.co.za [FIRSTNAME SURNAME - TECH ASSIGNMENT YYYYMMDD.ZIP]
  *
  * Your assignment is to complete the following 3 tasks in this C# console application:
  *
