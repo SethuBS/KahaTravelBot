@@ -1,4 +1,4 @@
-/*
+/*Update the following code. move every URL to config file and use variables to represent the URLs: /*
  * KAHA Programming Assignment - Console Application
  *
  * - At Kaha, we love to travel. We've created a basic program to help us dream up the next place we want to visit on holiday, providing you with all the essential information for your trip.
@@ -41,171 +41,61 @@
 package org.kaha.com.travelbot;
 
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+import lombok.AllArgsConstructor;
 import org.kaha.com.travelbot.dto.Country;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
+import org.kaha.com.travelbot.dto.SunriseSunsetTimes;
+import org.kaha.com.travelbot.service.CountryService;
+import org.kaha.com.travelbot.service.SunriseSunsetService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.*;
+@AllArgsConstructor
+@SpringBootApplication
+public class KahaTravelBotApplication implements CommandLineRunner {
 
-public class KahaTravelBotApplication {
+    @Autowired
+    private CountryService countryService;
 
-    // TODO: move Url to config file which is application.properties file
-    // Urls in question: https://restcountries.com/v3.1/all, and https://api.sunrise-sunset.org/json?lat=" + country.getLatitude() + "&lng=" + country.getLongitude()
+    @Autowired
+    private SunriseSunsetService sunriseSunsetService;
 
     public static void main(String[] args) {
+        SpringApplication.run(KahaTravelBotApplication.class, args);
+    }
+
+    @Override
+    public void run(String... args) {
         System.out.println("Welcome to the KAHA Travel Bot");
-        System.out.println("Fetching all countries from https://restcountries.com");
+        System.out.println("Fetching all countries...");
 
-        List<Country> countries = getAllCountries();
-
-        if (countries.isEmpty()) {
-            System.out.println("Error fetching countries!");
-            return;
-        }
-
-        System.out.println("Choosing random country from the southern hemisphere...");
-        Country randomCountry = randomCountryInSouthernHemisphere(countries);
+        Country randomCountry = countryService.getRandomCountryInSouthernHemisphere();
 
         if (randomCountry != null) {
             System.out.println("Selected Random Country: " + randomCountry.getName());
-            // Asynchronous call to get sunrise and sunset times for the random country
-            getSunriseSunsetTimes(randomCountry);
-        }
-    }
+            SunriseSunsetTimes times = sunriseSunsetService.getSunriseSunsetTimes(randomCountry);
 
-     static List<Country> getAllCountries() {
-        RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<String> responseEntity = restTemplate.getForEntity("https://restcountries.com/v3.1/all", String.class);
-        String response = responseEntity.getBody();
-        return parseCountryData(response);
-    }
-
-    static List<Country> parseCountryData(String response) {
-        List<Country> countries = new ArrayList<>();
-
-        try {
-            JSONArray jsonArray = new JSONArray(response);
-
-            for (int i = 0; i < jsonArray.length(); i++) {
-                JSONObject jsonObject = jsonArray.getJSONObject(i);
-                Country country = new Country();
-                JSONObject nameObject = jsonObject.getJSONObject("name");
-                country.setName(nameObject.getString("common"));
-
-                JSONArray capitalsArray = jsonObject.optJSONArray("capital");
-                if (capitalsArray != null && capitalsArray.length() > 0) {
-                    country.setCapital(capitalsArray.getString(0));
-                }
-
-                JSONObject capitalInfo = jsonObject.optJSONObject("capitalInfo");
-                if (capitalInfo != null && capitalInfo.has("latlng")) {
-                    JSONArray latlngArray = capitalInfo.getJSONArray("latlng");
-                    if (latlngArray.length() == 2) {
-                        country.setLatitude((float) latlngArray.getDouble(0));
-                        country.setLongitude((float) latlngArray.getDouble(1));
-                    }
-                }
-
-                // Extract language information from the nested "languages" object
-                JSONObject languagesObject = jsonObject.optJSONObject("languages");
-                if (languagesObject != null) {
-                    List<String> languages = new ArrayList<>();
-                    Iterator<String> keys = languagesObject.keys();
-                    while (keys.hasNext()) {
-                        String key = keys.next();
-                        String languageName = languagesObject.getString(key);
-                        languages.add(languageName);
-                    }
-                    country.setOfficialLanguages(languages); // Set officialLanguages property
-                }
-
-                // Extract driving side information nested under the "car" object
-                JSONObject carObject = jsonObject.optJSONObject("car");
-                if (carObject != null && carObject.has("side")) {
-                    String drivingSide = carObject.getString("side");
-                    country.setDrivingSide(drivingSide); // Set drivingSide property
-                }
-
-
-                countries.add(country);
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-
-        return countries;
-    }
-    static Country randomCountryInSouthernHemisphere(List<Country> countries) {
-        List<Country> countriesInSouthernHemisphere = new ArrayList<>();
-        for (Country country : countries) {
-            if (country.getLatitude() < 0) {
-                countriesInSouthernHemisphere.add(country);
-            }
-        }
-
-        if (!countriesInSouthernHemisphere.isEmpty()) {
-            int randomIndex = new Random().nextInt(countriesInSouthernHemisphere.size());
-            return countriesInSouthernHemisphere.get(randomIndex);
-        }
-
-        return null;
-    }
-
-    static void getSunriseSunsetTimes(Country country) {
-
-        try {
-            if (country == null || country.getCapital() == null || country.getLatitude() == 0 || country.getLongitude() == 0) {
-                System.out.println("Country information is incomplete. Unable to retrieve sunrise and sunset times.");
-                return;
+            if (times != null) {
+                System.out.println("Sunrise time in " + randomCountry.getCapital() + ": " + times.getSunrise());
+                System.out.println("Sunset time in " + randomCountry.getCapital() + ": " + times.getSunset());
             }
 
-            String capital = country.getCapital();
-            URL url = new URL("https://api.sunrise-sunset.org/json?lat=" + country.getLatitude() + "&lng=" + country.getLongitude());
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("GET");
-
-            Scanner scanner = new Scanner(connection.getInputStream());
-            StringBuilder response = new StringBuilder();
-            while (scanner.hasNextLine()) {
-                response.append(scanner.nextLine());
-            }
-            scanner.close();
-
-            JSONObject json = new JSONObject(response.toString());
-            JSONObject results = json.getJSONObject("results");
-            String sunrise = results.getString("sunrise");
-            String sunset = results.getString("sunset");
-
-            System.out.println("Sunrise time in " + capital + ": " + sunrise);
-            System.out.println("Sunset time in " + capital + ": " + sunset);
-
-            // Output country summary in typewriter style
             System.out.println("=== Country Summary ===");
-            System.out.println("Total number of official languages: " + (country.getOfficialLanguages() != null ? country.getOfficialLanguages().size() : 0));
-            System.out.println("Side of the inhabitants drive on: " + (country.getDrivingSide() != null ? country.getDrivingSide() : "Information not available"));
-            System.out.println();
+            System.out.println("Total number of official languages: " + (randomCountry.getOfficialLanguages() != null ? randomCountry.getOfficialLanguages().size() : 0));
+            System.out.println("Side of the inhabitants drive on: " + (randomCountry.getDrivingSide() != null ? randomCountry.getDrivingSide() : "Information not available"));
 
-            // Calculate distance between the random capital city and KAHA offices (example calculation)
-            double distance = calculateDistance(country.getLatitude(), country.getLongitude(), -33.9759679, 18.4566283);
-            System.out.println("Distance between " + (country.getCapital() != null ? country.getCapital() : "Capital information not available") + " and KAHA offices: " + distance + " km");
-
-        } catch (Exception e) {
-            e.printStackTrace();
+            double distance = calculateDistance(randomCountry.getLatitude(), randomCountry.getLongitude());
+            System.out.println("Distance between " + (randomCountry.getCapital() != null ? randomCountry.getCapital() : "Capital information not available") + " and KAHA offices: " + distance + " km");
+        } else {
+            System.out.println("No country found in the southern hemisphere.");
         }
     }
 
-    static double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-        // Example calculation of distance using latitude and longitude coordinates
-        // You can use a more accurate formula for distance calculation based on the Earth's curvature
-
-        double theta = lon1 - lon2;
-        double distance = Math.sin(Math.toRadians(lat1)) * Math.sin(Math.toRadians(lat2))
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) * Math.cos(Math.toRadians(theta));
+    private double calculateDistance(double lat1, double lon1) {
+        double theta = lon1 - 18.4566283;
+        double distance = Math.sin(Math.toRadians(lat1)) * Math.sin(Math.toRadians(-33.9759679))
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(-33.9759679)) * Math.cos(Math.toRadians(theta));
         distance = Math.acos(distance);
         distance = Math.toDegrees(distance);
         distance = distance * 60 * 1.1515 * 1.609344; // Convert miles to kilometers
